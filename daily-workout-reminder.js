@@ -5,16 +5,16 @@
 // start of config ==========================
 
 // sets the locale of the date
-let locale = "de_DE";
+const locale = "de_DE";
 
 // sets the name of the shortcut that redirects back to the homescreen (can be undefined)
-let shortcutNameHomeScreen = "hs";
+const shortcutNameHomeScreen = "hs";
 
 // how many and when do you want to start your workouts on each week day?
-let startTimes = ["06:30", "14:00", "21:30"];
+const startTimes = ["06:30", "14:00", "21:30"];
 
 // workout time in min
-let duration = 30;
+const duration = 30;
 
 // end of config ===========================
 
@@ -43,23 +43,23 @@ const WorkoutStates = {
 };
 
 // initialize date formatter for time and date
-let dft = new DateFormatter();
+const dft = new DateFormatter();
 dft.useShortTimeStyle();
-let df = new DateFormatter();
+const df = new DateFormatter();
 df.useMediumDateStyle();
 df.locale = locale;
 
 // load and initialize data
-let fm = FileManager.iCloud();
-let file = fm.joinPath(fm.documentsDirectory(), "dailyworkout.json");
-let data = fm.fileExists(file) ? JSON.parse(fm.readString(file)) : JSON.parse("[]");
-let todaysDate = df.date(df.string(new Date()));
-let dataToday = (data.length > 0 && sameDay(todaysDate, df.date(data[0].date))) ? data[0] : JSON.parse("{}");
+const fm = FileManager.iCloud();
+const file = fm.joinPath(fm.documentsDirectory(), "dailyworkout.json");
+const data = fm.fileExists(file) ? JSON.parse(fm.readString(file)) : JSON.parse("[]");
+const todaysDate = df.date(df.string(new Date()));
+const dataToday = (data.length > 0 && sameDay(todaysDate, df.date(data[0].date))) ? data[0] : JSON.parse("{}");
 
 if (args.queryParameters.workoutCount && args.queryParameters.state) {
 	// updates data based on query parameters
 	dataToday.state[parseInt(args.queryParameters.workoutCount) - 1] = parseInt(args.queryParameters.state);
-	updateAndSave(file, data, dataToday);
+	updateAndSave();
 	backToHomeScreen(shortcutNameHomeScreen);
 	Script.complete();
 } else if (config.runsInNotification) {
@@ -67,8 +67,8 @@ if (args.queryParameters.workoutCount && args.queryParameters.state) {
 	Script.complete();
 } else if (args.notification) {
 	// run from notification
-	let notif = args.notification;
-	let isStart = notif.userInfo["isStart"];
+	const notif = args.notification;
+	const isStart = notif.userInfo["isStart"];
 	workoutCount = notif.userInfo["workoutCount"];
 	
 	let ui = new UITable();
@@ -99,7 +99,7 @@ if (args.queryParameters.workoutCount && args.queryParameters.state) {
 	cell.centerAligned();
 	cell.onTap = () => {
 		dataToday.state[workoutCount - 1] = (isStart ? WorkoutStates.STARTED : WorkoutStates.DONE);
-		updateAndSave(file, data, dataToday);
+		updateAndSave();
 	};
 	cell = rowA.addButton("No");
 	cell.dismissOnTap = false;
@@ -119,7 +119,7 @@ if (args.queryParameters.workoutCount && args.queryParameters.state) {
 		buttonNo.dismissOnTap = true;
 		buttonNo.onTap = () => {
 			dataToday.state[workoutCount - 1] = (isStart ? WorkoutStates.NOT_STARTED : WorkoutStates.SKIPPED);
-			updateAndSave(file, data, dataToday);
+			updateAndSave();
 		};
 		for (let state in WorkoutStates) {
 			state = WorkoutStates[state];
@@ -131,7 +131,7 @@ if (args.queryParameters.workoutCount && args.queryParameters.state) {
 				button.dismissOnTap = true;
 				button.onTap = () => {
 					dataToday.state[workoutCount - 1] = state;
-					updateAndSave(file, data, dataToday);
+					updateAndSave();
 				};
 				ui.addRow(row);
 			}
@@ -144,19 +144,19 @@ if (args.queryParameters.workoutCount && args.queryParameters.state) {
 	Script.complete();
 } else if (config.runsInApp || config.runsInWidget || config.runsFromHomeScreen){
 	// build widget
-	let widget = new ListWidget();
+	const widget = new ListWidget();
 	widget.backgroundColor = Color.lightGray();
 
 	// add workout history of past 5 days to widget
-	let pastWorkouts = getDataForPastNDays(data, todaysDate, 5, df);
-	let contentStack = widget.addStack();
+	const pastWorkouts = getDataForPastNDays(5);
+	const contentStack = widget.addStack();
 	contentStack.layoutVertically();
 	for (workoutCount = 1; workoutCount <= startTimes.length; workoutCount++) {
-		let stack = contentStack.addStack();
+		const stack = contentStack.addStack();
 		stack.size = new Size(contentStack.size.width, 20);
 		stack.addImage(SFSymbol.named(`${workoutCount}.circle.fill`).image);
 		pastWorkouts.forEach((entry) => {
-			let state = entry.state[workoutCount - 1];
+			const state = entry.state[workoutCount - 1];
 			if (state <= WorkoutStates.DONE) {
 				stack.addImage(SFSymbol.named(state >= WorkoutStates.STARTED ? "checkmark" : "xmark").image);		
 			} else {
@@ -168,7 +168,6 @@ if (args.queryParameters.workoutCount && args.queryParameters.state) {
 	  
 	if (isWeekDay(todaysDate)) {
 		let dataChanged = false;
-		let workoutCount = 0;
 		// check if data for today exists and use it
 		if (JSON.stringify(dataToday) === "{}") {
 			// remove notifications from another day
@@ -183,48 +182,60 @@ if (args.queryParameters.workoutCount && args.queryParameters.state) {
 			dataToday.state = new Array(startTimes.length).fill(WorkoutStates.NOT_STARTED);
 			data.unshift(dataToday);
 			// schedule daily notifications
-			for (workoutCount = 1; workoutCount <= startTimes.length; workoutCount++) {		
+			for (let workoutCount = 1; workoutCount <= startTimes.length; workoutCount++) {
 				// workout start: reminder that can just be dismissed - is dismissed with end
-				await createNotification(getDateTime(todaysDate, dft, startTimes[workoutCount - 1]), `Start your daily workout #${workoutCount} 💪`, workoutCount, true);
+				await createNotification(getDateTime(startTimes[workoutCount - 1]), `Start your daily workout #${workoutCount} 💪`, workoutCount, true);
 				// workout end: reminder that asks if workout was done
-				let endWorkout = getDateTime(todaysDate, dft, startTimes[workoutCount - 1]);
+				let endWorkout = getDateTime(startTimes[workoutCount - 1]);
 				endWorkout.setMinutes(endWorkout.getMinutes() + duration);
 				await createNotification(endWorkout, `💪 Finish your workout #${workoutCount}`, workoutCount, false);
 				
 			}
 		}
-		workoutCount = determineCurrentWorkoutCount(todaysDate, startTimes, dft);
+		// determine current workout count
+		let currentWorkoutCount = startTimes.length;
+		const date = new Date();
+		for (let startIdx = 0; startIdx < startTimes.length; startIdx++) {
+			if (date.getTime() < getDateTime(startTimes[startIdx]).getTime()) {
+				currentWorkoutCount = Math.max(1, startIdx);
+				break;
+			}
+		}
 		// update notifs
 		pendingNotif = (await Notification.allPending()).filter(notif => notif.threadIdentifier === Script.name());
 		deliveredNotif = (await Notification.allDelivered()).filter(notif => notif.threadIdentifier === Script.name());
-		if (dataToday.state && dataToday.state[workoutCount - 1] >= WorkoutStates.DONE) {
-			// remove remaining notif for workout
-			let pendingNotifsToRemove = pendingNotif.filter(notif => notif.userInfo["workoutCount"] === workoutCount).map(notif => notif.identifier);
-			await Notification.removePending(pendingNotifsToRemove);
-			let deliveredNotifsToRemove = deliveredNotif.filter(notif => notif.userInfo["workoutCount"] === workoutCount).map(notif => notif.identifier);
-			await Notification.removeDelivered(deliveredNotifsToRemove);
-		} else if (deliveredNotif.some(notif => notif.userInfo["isStart"] === false && notif.userInfo["workoutCount"] === workoutCount) && deliveredNotif.some(notif => notif.userInfo["isStart"] === true)) {
-			// remove delivered start notif if end is delivered
-			let deliveredNotifsToRemove = deliveredNotif.filter(notif => notif.userInfo["isStart"] === true).map(notif => notif.identifier);
-			await Notification.removeDelivered(deliveredNotifsToRemove);
-		}
-		// change state depending on current state and dismissed/delivered/pending notifs
-		if (dataToday.state[workoutCount - 1] === WorkoutStates.NOT_STARTED && deliveredNotif.some(notif => notif.userInfo["workoutCount"] === workoutCount)) {
-			// change state to pending if unanswered start notif
-			dataToday.state[workoutCount - 1] = WorkoutStates.PENDING;
-			dataChanged = true;
-		} else if (dataToday.state[workoutCount - 1] === WorkoutStates.PENDING && deliveredNotif.every(notif => notif.userInfo["workoutCount"] !== workoutCount) && pendingNotif.some(notif => notif.userInfo["workoutCount"] === workoutCount)) {
-			// change state to not started if dismissed start notif
-			dataToday.state[workoutCount - 1] = WorkoutStates.NOT_STARTED;
-			dataChanged = true;
-		} else if (dataToday.state[workoutCount - 1] < WorkoutStates.DONE && deliveredNotif.every(notif => notif.userInfo["workoutCount"] !== workoutCount) && pendingNotif.every(notif => notif.userInfo["workoutCount"] !== workoutCount)) {
-			// change state to skipped if not done and no more notifs for workout count (dismissed start and end notifs)
-			dataChanged = dataToday.state[workoutCount - 1] !== WorkoutStates.SKIPPED;
-			dataToday.state[workoutCount - 1] = WorkoutStates.SKIPPED;
+		for (let workoutCount = 1; workoutCount <= currentWorkoutCount; workoutCount++) {
+			if (dataToday.state && dataToday.state[workoutCount - 1] >= WorkoutStates.DONE) {
+				// remove remaining notif for workout
+				let pendingNotifsToRemove = pendingNotif.filter(notif => notif.userInfo["workoutCount"] === workoutCount).map(notif => notif.identifier);
+				await Notification.removePending(pendingNotifsToRemove);
+				let deliveredNotifsToRemove = deliveredNotif.filter(notif => notif.userInfo["workoutCount"] === workoutCount).map(notif => notif.identifier);
+				await Notification.removeDelivered(deliveredNotifsToRemove);
+			} else if (deliveredNotif.some(notif => notif.userInfo["isStart"] === false && notif.userInfo["workoutCount"] === workoutCount) && deliveredNotif.some(notif => notif.userInfo["isStart"] === true)) {
+				// remove delivered start notif if end is delivered
+				let deliveredNotifsToRemove = deliveredNotif.filter(notif => notif.userInfo["isStart"] === true).map(notif => notif.identifier);
+				await Notification.removeDelivered(deliveredNotifsToRemove);
+			}
+			pendingNotif = (await Notification.allPending()).filter(notif => notif.threadIdentifier === Script.name());
+			deliveredNotif = (await Notification.allDelivered()).filter(notif => notif.threadIdentifier === Script.name());
+			// change state depending on current state and dismissed/delivered/pending notifs
+			if (dataToday.state[workoutCount - 1] === WorkoutStates.NOT_STARTED && deliveredNotif.some(notif => notif.userInfo["workoutCount"] === workoutCount)) {
+				// change state to pending if unanswered start notif
+				dataToday.state[workoutCount - 1] = WorkoutStates.PENDING;
+				dataChanged = true;
+			} else if (dataToday.state[workoutCount - 1] === WorkoutStates.PENDING && deliveredNotif.every(notif => notif.userInfo["workoutCount"] !== workoutCount) && pendingNotif.some(notif => notif.userInfo["workoutCount"] === workoutCount)) {
+				// change state to not started if dismissed start notif
+				dataToday.state[workoutCount - 1] = WorkoutStates.NOT_STARTED;
+				dataChanged = true;
+			} else if (dataToday.state[workoutCount - 1] < WorkoutStates.DONE && deliveredNotif.every(notif => notif.userInfo["workoutCount"] !== workoutCount) && pendingNotif.every(notif => notif.userInfo["workoutCount"] !== workoutCount)) {
+				// change state to skipped if not done and no more notifs for workout count (dismissed start and end notifs)
+				dataChanged = dataChanged || dataToday.state[workoutCount - 1] !== WorkoutStates.SKIPPED;
+				dataToday.state[workoutCount - 1] = WorkoutStates.SKIPPED;
+			}
 		}
 		if (dataChanged) {
 			console.log(`dataToday: ${JSON.stringify(dataToday)}`);
-			updateAndSave(file, data, dataToday);
+			updateAndSave();
 		}
     } else {
 		dataToday.date = df.string(todaysDate);
@@ -235,9 +246,9 @@ if (args.queryParameters.workoutCount && args.queryParameters.state) {
     contentStack.addText(dataToday.date);
 	
 	// add state of each workout to widget
-	let stackToday = contentStack.addStack();
+	const stackToday = contentStack.addStack();
 	dataToday.state.forEach((stateEntry, stateIndex) => {
-		let todaysWorkout = stackToday.addImage(SFSymbol.named(`${stateIndex+1}.circle`).image);	
+		const todaysWorkout = stackToday.addImage(SFSymbol.named(`${stateIndex+1}.circle`).image);	
 		todaysWorkout.imageSize = new Size(contentStack.width / startTimes.length, contentStack.height / startTimes.length);
 		todaysWorkout.tintColor = stateEntry == null ? Color.lightGray() : WorkoutStates.properties[stateEntry].color;
 		stackToday.addSpacer(10);
@@ -252,27 +263,15 @@ if (args.queryParameters.workoutCount && args.queryParameters.state) {
 
 // helper func
 
-// determines the current workout count
-function determineCurrentWorkoutCount(todaysDate, startTimes, dft) {
-	let date = new Date();
-	for (let startIdx = 0; startIdx < startTimes.length; startIdx++) {
-		let workoutStartDateTime = getDateTime(todaysDate, dft, startTimes[startIdx])
-		if (date.getTime() < workoutStartDateTime.getTime()) {
-			return Math.max(1, startIdx);
-		}
-	}
-	return startTimes.length;
-}
-
 // update and save data
-function updateAndSave(file, data, dataToday) {
+function updateAndSave() {
 	console.log(`saving data with ${data.length} entries`);
 	data[0] = dataToday;
 	fm.writeString(file, JSON.stringify(data));
 }
 
 // gets data for past n days
-function getDataForPastNDays(data, todaysDate, n, df) {
+function getDataForPastNDays(n) {
 	if (data.length > 0 && sameDay(todaysDate, df.date(data[0].date))) {
 		return data.slice(1, n+1);
 	}
@@ -293,8 +292,8 @@ function isWeekDay(d) {
 }
 
 // gets today with hours and minutes set to the given time
-function getDateTime(todaysDate, dft, formattedTime) {
-	let d = todaysDate;
+function getDateTime(formattedTime) {
+	let d = df.date(df.string(todaysDate));
 	d.setHours(dft.date(formattedTime).getHours());
 	d.setMinutes(dft.date(formattedTime).getMinutes());
 	return d;
