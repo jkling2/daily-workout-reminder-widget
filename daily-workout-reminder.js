@@ -29,10 +29,10 @@ const WorkoutStates = {
   BIKE: 7,
   WALKING: 8,
   
-  properties: {
-    0: {name: "Not started", value: 0, color: Color.gray()},
-    1: {name: "Pending", value: 1, color: Color.darkGray()},
-    2: {name: "Skipped", value: 2, color: Color.red()},
+  properties: {	
+	0: {name: "Not started", value: 0, color: Color.gray()},	
+	1: {name: "Pending", value: 1, color: Color.darkGray()},	
+	2: {name: "Skipped", value: 2, color: Color.red()},	
 	3: {name: "Started", value: 3, color: Color.green()},
 	4: {name: "Done", value: 4, color: Color.blue()},
 	5: {name: "Tennis", value: 5, color: Color.blue(), text: "🎾"},
@@ -197,7 +197,7 @@ if (args.queryParameters.workoutCount && args.queryParameters.state) {
 		const date = new Date();
 		for (let startIdx = 0; startIdx < startTimes.length; startIdx++) {
 			if (date.getTime() < getDateTime(startTimes[startIdx]).getTime()) {
-				currentWorkoutCount = Math.max(1, startIdx);
+				currentWorkoutCount = startIdx;
 				break;
 			}
 		}
