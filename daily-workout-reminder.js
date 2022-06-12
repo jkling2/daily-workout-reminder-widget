@@ -27,7 +27,8 @@ const WorkoutStates = {
   TENNIS: 5,
   RUNNING: 6,
   BIKE: 7,
-  WALKING: 8,
+  WALKING: 8,	
+  YOGA: 9,
   
   properties: {	
 	0: {name: "Not started", value: 0, color: Color.gray()},	
@@ -39,6 +40,7 @@ const WorkoutStates = {
 	6: {name: "Running", value: 6, color: Color.blue(), text: "🏃"},
 	7: {name: "Bike", value: 7, color: Color.blue(), text: "🚴"},
 	8: {name: "Walking", value: 8, color: Color.blue(), text: "🚶"},
+	9: {name: "Yoga", value: 9, color: Color.blue(), text: "🧘"},
   }
 };
 
